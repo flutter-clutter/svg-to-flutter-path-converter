@@ -1,0 +1,34 @@
+{
+  "name": "svg-to-flutter-path-converter",
+  "version": "1.0.0",
+  "description": "Convert your SVG file directly to Flutter paths and prevent all the messing with bezier curves.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/flutter-clutter/svg-to-flutter-path-converter.git"
+  },
+  "keywords": [
+    "svg",
+    "flutter",
+    "path",
+    "paint",
+    "canvas"
+  ],
+  "author": "Marc Gerkens",
+  "license": "Apache-2.0",
+  "bugs": {
+    "url": "https://github.com/flutter-clutter/svg-to-flutter-path-converter/issues"
+  },
+  "homepage": "https://github.com/flutter-clutter/svg-to-flutter-path-converter#readme",
+  "dependencies": {
+    "commander": "9.2.0",
+    "svgo": "2.8.0",
+    "svgson": "5.2.1"
+  },
+  "bin": {
+    "svg-to-flutter": "./index.js"
+  }
+}
