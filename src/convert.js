@@ -4,81 +4,100 @@ const { optimize } = require('svgo');
 const svgUtils = require('./utils/svg_utils')
 const flutterPath = require('./flutter_path')
 
-function convert(filePath) {
-    const data = fs.readFileSync(filePath, 'utf8')
-    const optimized = optimize(data).data
-    let result = converter.convert(optimized)
-
-    console.log(result)
+class SvgNode {
+  constructor(name, type, attributes) {
+    this.name = name;
+    this.type = type;
+    this.attributes = attributes;
+  }
 }
 
-let converter = {
-    convert: function (svgString) {
-        let parsed = parseSync(svgString)
+class SvgToFlutterPathConverter {
+  static supportedShapeDefinitions = ['path', 'circle', 'rect'];
 
-        let supportedShapeDefinitions = ['path', 'circle', 'rect'];
+  convertFromFilePath(filePath) {
+    const data = fs.readFileSync(filePath, 'utf8');
+    const optimized = optimize(data).data;
 
-        parsed.children.map((element) => {
-          element.attributes.style = styleStringToObject(element.attributes.style); 
+    return this.convertFromString(optimized);
+  }
+
+  convertFromString(svgString) {
+      let parsedNodes = parseSync(svgString).children;
+      let groups = this.flattenGroupAttribute(parsedNodes);
+      let filteredNodes = this.filterSupportedNodes(groups, parsedNodes);
+
+      let svgNodes = filteredNodes
+        .map((element) => {
+          element.attributes.style = this.styleStringToObject(element.attributes.style);
           return element;
-        });
+        })
+        .map((element) => new SvgNode(element.name, element.type, element.attributes));
 
-        let layers = parsed.children.filter((value) => value.name == "g");
-        let flattenedLayers = layers
-          .flatMap(
-            (group) => group.children.map(
-              (element) => mergeGroupStylesIntoElements(group, element)
-            )
-          );
+      return shapesToFlutterCodeConverter(filteredNodes);
+  }
 
-        let supportedShapes = flattenedLayers
-          .filter((value) => supportedShapeDefinitions.includes(value.name))
-          .concat(
-            parsed.children.filter((value) => supportedShapeDefinitions.includes(value.name))
-          );
+  filterSupportedNodes(nodes, groups) {
+    let supportedShapeDefinitions = ['path', 'circle', 'rect'];
 
-        return shapesToFlutterCodeConverter(supportedShapes);
-    },
-};
+    return groups
+      .filter((value) => supportedShapeDefinitions.includes(value.name))
+      .concat(
+        nodes.filter((value) => supportedShapeDefinitions.includes(value.name))
+      );
+  }
 
-function styleStringToObject(styleString) {
-  let regex = /([\w-]*)\s*:\s*([^;]*)/g;
-  let match, properties={};
-  while(match=regex.exec(styleString)) properties[match[1]] = match[2].trim();
+  flattenGroupAttribute(nodes) {
+    let groups = nodes.filter((svgNode) => svgNode.name == "g");
 
-  return properties;
+    return groups
+      .flatMap(
+        (group) => group.children.map(
+          (svgNode) => this.mergeGroupStylesIntoElements(group, svgNode)
+        )
+      );
+  }
+
+  styleStringToObject(styleString) {
+    let regex = /([\w-]*)\s*:\s*([^;]*)/g;
+    let match, properties={};
+    while(match=regex.exec(styleString)) properties[match[1]] = match[2].trim();
+
+    return properties;
+  }
+
+  mergeGroupStylesIntoElements(group, element) {
+      if (group.attributes != null) {
+          return {
+              ...element,
+              "attributes": {
+                  ...element.attributes,
+                  ...group.attributes,
+              }
+          }
+      } else {
+          return element;
+      }
+  };
 }
 
-function mergeGroupStylesIntoElements(group, element) {
-    if (group.attributes != null) {
-        return {
-            ...element,
-            "attributes": {
-                ...element.attributes,
-                ...group.attributes,
-            }
-        }
-    } else {
-        return element;
-    }
-}
-
-let shapeToPathConverter = {
-    fromCircle: function (pathObject) {
-        let cx = parseInt(pathObject.attributes.cx);
-        let cy = parseInt(pathObject.attributes.cy);
-        let r = parseInt(pathObject.attributes.r);
-        let p = 'M ' + (+r + +cx) + ',' + cy + ' A ' + r + ',' + r + ' 0 0 1 ' + cx + ',' + (+r + +cy) + ' ' + r + ',' + r + ' 0 0 1 ' + (+cx - +r) + ',' + cy + ' ' + r + ',' + r + ' 0 0 1 ' + cx + ',' + (+cy - +r) + ' ' + r + ',' + r + ' 0 0 1 ' + (+cx + +r) + ',' + cy;
-
-        return p;
-    },
-    fromRect: function (pathObject) {
+class ShapeToPathConverter {
+    fromRect (pathObject) {
         let x = parseInt(pathObject.attributes.x);
         let y = parseInt(pathObject.attributes.y);
         let width = parseInt(pathObject.attributes.width);
         let height = parseInt(pathObject.attributes.height);
 
         let p = 'M ' + x + ',' + y + ' H ' + width + ' V ' + height + ' H ' + x + ' Z';
+
+        return p;
+    }
+
+    fromCircle (pathObject) {
+        let cx = parseInt(pathObject.attributes.cx);
+        let cy = parseInt(pathObject.attributes.cy);
+        let r = parseInt(pathObject.attributes.r);
+        let p = 'M ' + (+r + +cx) + ',' + cy + ' A ' + r + ',' + r + ' 0 0 1 ' + cx + ',' + (+r + +cy) + ' ' + r + ',' + r + ' 0 0 1 ' + (+cx - +r) + ',' + cy + ' ' + r + ',' + r + ' 0 0 1 ' + cx + ',' + (+cy - +r) + ' ' + r + ',' + r + ' 0 0 1 ' + (+cx + +r) + ',' + cy;
 
         return p;
     }
@@ -91,21 +110,23 @@ function getPathData(paths) {
         paths: []
     }
 
-    paths.forEach((pathObject) => {
+    let shapeToPathConverter = new ShapeToPathConverter();
+
+    paths.forEach((svgNode) => {
         let pathString;
-        if (pathObject.name === 'circle') {
-            pathString = shapeToPathConverter.fromCircle(pathObject);
-        } else if (pathObject.name === 'rect') {
-            pathString = shapeToPathConverter.fromRect(pathObject);
+        if (svgNode.name === 'circle') {
+            pathString = shapeToPathConverter.fromCircle(svgNode);
+        } else if (svgNode.name === 'rect') {
+            pathString = shapeToPathConverter.fromRect(svgNode);
         } else {
-            pathString = pathObject.attributes.d;
+            pathString = svgNode.attributes.d;
         }
 
         path = svgUtils.path2curve(pathString)
 
         pathData.paths.push({
-            type: 'path',
-            node: pathObject,
+            type: svgNode.name,
+            node: svgNode,
             preparedPath: path
         });
 
@@ -123,6 +144,55 @@ function getPathData(paths) {
     return pathData;
 }
 
+
+function getFillFromNode(node) {
+    if (node.attributes.fill != null) {
+        return node.attributes.fill;
+    }
+
+    if (node.attributes.style !== undefined && node.attributes.style.fill !== undefined) {
+      return node.attributes.style.fill;
+    }
+
+    return '';
+}
+
+function colorStringToObject(value) {
+    if (value == 'none') {
+        return null;
+    }
+    if (value == null) {
+        return null;
+    }
+    if (value == '') {
+        return null;
+    }
+    if (value[0] == '#' && value.length === 4) {
+        let color = value;
+        color = color.split("").map((item) => {
+            if (item == "#") { return item }
+            return item + item;
+        }).join("")
+
+        if (color[0] != "#") {
+            color = "#" + color;
+        }
+        return color.substr(1);
+    }
+    if (value[0] == '#') {
+        return value.substr(1);
+    }
+    return (value.match(/\d+/g)).map(function (o) {
+        let val = (o * 1).toString(16);
+        val = (val.length > 1) ? val : "0" + val;
+        return val;
+    }).join("")
+}
+
+function normalizeNumber(number) {
+  return number.replace(/[^0-9]/g,'');
+}
+
 function shapesToFlutterCodeConverter(shapes) {
     let printer = new flutterPath.FlutterCustomPaintPrinter();
     let flutterPaths = [];
@@ -132,6 +202,26 @@ function shapesToFlutterCodeConverter(shapes) {
     
     pathData.paths.forEach((path, index) => {
         let pathOperations = [];
+
+        if (path.type === 'circle') {
+          pathOperations.push(
+            new flutterPath.AddOvalOperation(
+              normalizeNumber(path.node.attributes.cx) / pathData.width,
+              normalizeNumber(path.node.attributes.cy) / pathData.height,
+              normalizeNumber(path.node.attributes.r) / pathData.width
+            )
+          );
+
+          let color = colorStringToObject(getFillFromNode(path.node));
+          let opacity = path.node.attributes.style['fill-opacity'] == '' ? null : path.node.attributes.style['fill-opacity'];
+          if (color == null) {
+            color = 'ffffff';
+            opacity = '0';
+          }
+          flutterPaths.push(new flutterPath.FlutterPath(pathOperations, color, opacity));
+
+          return;
+        }
 
         if (path.type !== 'path') {
           return;
@@ -168,7 +258,7 @@ function shapesToFlutterCodeConverter(shapes) {
             }
         });
 
-        let color = colorStringToObject(path.node.attributes.style.fill);
+        let color = colorStringToObject(getFillFromNode(path.node));
         let opacity = path.node.attributes.style['fill-opacity'] == '' ? null : path.node.attributes.style['fill-opacity'];
         if (color == null) {
             opacity = '0';
@@ -180,67 +270,4 @@ function shapesToFlutterCodeConverter(shapes) {
     return printer.print(flutterPaths);
 }
 
-function getFillFromNode(node) {
-    let fill = '';
-
-    if (node.attributes.fill != null) {
-        fill = node.attributes.fill.value;
-    }
-    else {
-        fill = node.style.fill;
-    }
-
-    return fill;
-}
-
-function colorStringToObject(value) {
-    if (value == 'none') {
-        return null;
-    }
-    if (value == null) {
-        return null;
-    }
-    if (value == '') {
-        return null;
-    }
-    if (value[0] == '#' && value.length === 4) {
-        let color = value;
-        color = color.split("").map((item) => {
-            if (item == "#") { return item }
-            return item + item;
-        }).join("")
-
-        if (color[0] != "#") {
-            color = "#" + color;
-        }
-        return color.substr(1);
-    }
-    if (value[0] == '#') {
-        return value.substr(1);
-    }
-    return (value.match(/\d+/g)).map(function (o) {
-        let val = (o * 1).toString(16);
-        val = (val.length > 1) ? val : "0" + val;
-        return val;
-    }).join("")
-}
-
-let circleToFlutterConverter = {
-    convert: (circle, width, height, color, opacity) => {
-        if (color == null) {
-            color = 'ffffff';
-        }
-        let opacityString = opacity ? ('.withOpacity(' + opacity + ')') : '';
-        let code = [
-            ["paint.color = Color(0xff" + color + ")" + opacityString + ";"],
-            ["path = Path();", 2],
-        ];
-
-        code.push(["path.addOval(Rect.fromCircle(center: Offset(" + getXFactorString(circle.x, width) + "," + getYFactorString(circle.y, height) + "), radius: " + getXFactorString(circle.radius, width) + "));", 2]);
-        code.push(["canvas.drawPath(path, paint);", 2]);
-
-        return code;
-    }
-}
-
-module.exports = convert
+module.exports = SvgToFlutterPathConverter

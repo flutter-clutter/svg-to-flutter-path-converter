@@ -8,7 +8,7 @@ class FlutterPath {
 
 class PathOperation {
   createSizeDependentToken(sizeProperty, number, round) {
-    let roundedNumber = helpers.roundNumber(number, round);
+    const roundedNumber = helpers.roundNumber(number, round);
 
     if (roundedNumber == 0) {
       return '0';
@@ -30,8 +30,8 @@ class MoveToOperation extends PathOperation {
   }
 
   toFlutterCommand(round = 2) {
-    let x = this.createSizeDependentToken('width', this.x, round);
-    let y = this.createSizeDependentToken('height', this.y, round);
+    const x = this.createSizeDependentToken('width', this.x, round);
+    const y = this.createSizeDependentToken('height', this.y, round);
 
     return `path.moveTo(${x}, ${y});`;
   }
@@ -45,8 +45,8 @@ class LineToOperation extends PathOperation {
   }
 
   toFlutterCommand(round = 2) {
-    let x = this.createSizeDependentToken('width', this.x, round);
-    let y = this.createSizeDependentToken('height', this.y, round);
+    const x = this.createSizeDependentToken('width', this.x, round);
+    const y = this.createSizeDependentToken('height', this.y, round);
 
     return `path.moveTo(${x}, ${y});`;
   }
@@ -64,14 +64,31 @@ class CubicToOperation extends PathOperation {
   }
 
   toFlutterCommand(round = 2) {
-    let x1 = this.createSizeDependentToken('width', this.x1, round);
-    let y1 = this.createSizeDependentToken('height', this.y1, round);
-    let x2 = this.createSizeDependentToken('width', this.x2, round);
-    let y2 = this.createSizeDependentToken('height', this.y2, round);
-    let x3 = this.createSizeDependentToken('width', this.x3, round);
-    let y3 = this.createSizeDependentToken('height', this.y3, round);
+    const x1 = this.createSizeDependentToken('width', this.x1, round);
+    const y1 = this.createSizeDependentToken('height', this.y1, round);
+    const x2 = this.createSizeDependentToken('width', this.x2, round);
+    const y2 = this.createSizeDependentToken('height', this.y2, round);
+    const x3 = this.createSizeDependentToken('width', this.x3, round);
+    const y3 = this.createSizeDependentToken('height', this.y3, round);
 
     return `path.cubicTo(${x1}, ${y1}, ${x2}, ${y2}, ${x3}, ${y3});`;
+  }
+}
+
+class AddOvalOperation extends PathOperation {
+  constructor(x, y, radius) {
+    super();
+    this.x = x;
+    this.y = y;
+    this.radius = radius;
+  }
+
+  toFlutterCommand(round = 2) {
+    const x = this.createSizeDependentToken('width', this.x, round);
+    const y = this.createSizeDependentToken('height', this.y, round);
+    const radius = this.createSizeDependentToken('width', this.radius, round);
+
+    return `path.addOval(Rect.fromCircle(center: Offset(${x}, ${y}), radius: ${radius}));`;
   }
 }
 
@@ -87,15 +104,15 @@ class FlutterPathPrinter {
 
 class FlutterCustomPaintPrinter {
   print(paths, name = 'MyPainter') {
-    let linesBefore = [
+    const linesBefore = [
       `class ${name} extends CustomPainter {`,
       '\t@override',
       '\tvoid paint(Canvas canvas, Size size) {',
       '\t\tPath path = Path();',
-      '\t\tPaint paint = Paint();'
+      '\t\tfinal Paint paint = Paint();'
     ];
 
-    let linesAfter = [
+    const linesAfter = [
       '\t}',
       '',
       '\t@override',
@@ -108,16 +125,12 @@ class FlutterCustomPaintPrinter {
     let linesPaths = [];
 
     paths.forEach((path, index) => {
-      /*if (index == 0) {
-        linesPaths.push('\t\tPath path = Path();');
-      }*/
-
       linesPaths.push('');
       linesPaths.push(`\t\t// Path ${index+1}`);
 
-      /*if (index > 0) {
+      if (index > 0) {
         linesPaths.push('\t\tpath = Path();');
-      }*/
+      }
 
 
       let color = path.color;
@@ -126,9 +139,9 @@ class FlutterCustomPaintPrinter {
           color = '000000';
       }
 
-      let opacityString = path.opacity ? `.withOpacity(${path.opacity})` : '';
-      let colorCommand = "paint.color = Color(0xff" + color + ")" + opacityString + ";"
-      let colorCommandString = `\t\t${colorCommand}`;
+      const opacityString = path.opacity ? `.withOpacity(${path.opacity})` : '';
+      const colorCommand = "paint.color = const Color(0xff" + color + ")" + opacityString + ";"
+      const colorCommandString = `\t\t${colorCommand}`;
 
       linesPaths.push(colorCommandString);
       path.operations.forEach((operation) => {
@@ -144,15 +157,13 @@ class FlutterCustomPaintPrinter {
   }
 }
 
-// TODO: Here?
-
-var helpers = {
+let helpers = {
     roundNumber: function (num, scale) {
         if (!("" + num).includes("e")) {
             return +(Math.round(num + "e+" + scale) + "e-" + scale);
         } else {
-            var arr = ("" + num).split("e");
-            var sig = ""
+            let arr = ("" + num).split("e");
+            let sig = ""
             if (+arr[1] + scale > 0) {
                 sig = "+";
             }
@@ -162,74 +173,10 @@ var helpers = {
 }
 
 module.exports = {
-  FlutterCustomPaintPrinter, FlutterPath, MoveToOperation, LineToOperation, CubicToOperation
+  FlutterCustomPaintPrinter,
+  FlutterPath,
+  MoveToOperation,
+  LineToOperation,
+  CubicToOperation,
+  AddOvalOperation
 };
-
-
-
-
-
-
-// TODO: OLD STUFF I MIGHT STILL NEED
-/*
-function cubicToFlutterString(segment, width, height) {
-    var firstArgument = getXFactorString(segment[1], width) + ', ' + getYFactorString(segment[2], height);
-    var secondArgument = getXFactorString(segment[3], width) + ', ' + getYFactorString(segment[4], height);
-    var thirdArgument = getXFactorString(segment[5], width) + ', ' + getYFactorString(segment[6], height);
-
-    return 'path.cubicTo(' + firstArgument + ', ' + secondArgument + ', ' + thirdArgument + ');';
-}
-
-function lineToFlutterString(x, y, width, height) {
-    return 'path.lineTo(' + getXFactorString(x, width) + ', ' + getYFactorString(y, height) + ');';
-}
-
-function moveToFlutterString(x, y, width, height) {
-    return 'path.moveTo(' + getXFactorString(x, width) + ', ' + getYFactorString(y, height) + ');';
-}
-
-function getXFactorString(x, width) {
-    var xFactor = helpers.roundNumber(x / width, 2);
-
-    if (xFactor >= 0.99 && xFactor <= 1.01) {
-        return 'size.width';
-    }
-
-    if (Math.abs(0.5 - xFactor) <= 0.01) {
-        return 'size.width / 2';
-    }
-
-    if (Math.abs(0.33 - xFactor) <= 0.01) {
-        return 'size.width / 3';
-    }
-
-    if (Math.abs(0.25 - xFactor) <= 0.01) {
-        return 'size.width / 4';
-    }
-
-    if (Math.abs(0.2 - xFactor) <= 0.01) {
-        return 'size.width / 5';
-    }
-
-    if (xFactor > 0 && xFactor < width) {
-        xFactor = 'size.width * ' + xFactor;
-    }
-
-    return xFactor;
-}
-
-var helpers = {
-    roundNumber: function (num, scale) {
-        if (!("" + num).includes("e")) {
-            return +(Math.round(num + "e+" + scale) + "e-" + scale);
-        } else {
-            var arr = ("" + num).split("e");
-            var sig = ""
-            if (+arr[1] + scale > 0) {
-                sig = "+";
-            }
-            return +(Math.round(+arr[0] + "e" + sig + (+arr[1] + scale)) + "e-" + scale);
-        }
-    }
-}
-*/
