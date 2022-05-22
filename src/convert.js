@@ -216,7 +216,7 @@ function shapesToFlutterCodeConverter(shapes) {
           let opacity = path.node.attributes.style['fill-opacity'] == '' ? null : path.node.attributes.style['fill-opacity'];
           if (color == null) {
             color = 'ffffff';
-            opacity = '0';
+            opacity = '1';
           }
           flutterPaths.push(new flutterPath.FlutterPath(pathOperations, color, opacity));
 
@@ -261,7 +261,7 @@ function shapesToFlutterCodeConverter(shapes) {
         let color = colorStringToObject(getFillFromNode(path.node));
         let opacity = path.node.attributes.style['fill-opacity'] == '' ? null : path.node.attributes.style['fill-opacity'];
         if (color == null) {
-            opacity = '0';
+            opacity = '1';
         }
 
         flutterPaths.push(new flutterPath.FlutterPath(pathOperations, color, opacity));
