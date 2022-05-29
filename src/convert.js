@@ -123,6 +123,7 @@ function getPathData(paths) {
         }
 
         path = svgUtils.path2curve(pathString)
+        path = changeLineCubicsToLines(path);
 
         pathData.paths.push({
             type: svgNode.name,
@@ -191,6 +192,19 @@ function colorStringToObject(value) {
 
 function normalizeNumber(number) {
   return number.replace(/[^0-9]/g,'');
+}
+
+function changeLineCubicsToLines(values) {
+    function isCubicThatCouldBeLine(element) {
+        return (element[0] == "C") && element.length >= 6 && element[3] == element[5] && element[4] == element[6];
+    }
+
+    return values.map((element) => {
+        if (isCubicThatCouldBeLine(element)) {
+            return ["L", ...element.slice(3, 5)];
+        }
+        return element;
+    });
 }
 
 function shapesToFlutterCodeConverter(shapes) {
