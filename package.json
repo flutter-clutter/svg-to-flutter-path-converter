@@ -25,6 +25,7 @@
   },
   "homepage": "https://github.com/flutter-clutter/svg-to-flutter-path-converter#readme",
   "dependencies": {
+    "color-name-list": "9.8.0",
     "commander": "9.2.0",
     "svgo": "2.8.0",
     "svgson": "5.2.1"

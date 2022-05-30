@@ -1,9 +1,17 @@
 class FlutterPath {
-  constructor(operations, color, opacity) {
+  constructor(operations, color, opacity, paintType, strokeWidth, closed) {
     this.operations = operations;
     this.color = color;
     this.opacity = opacity;
+    this.paintType = paintType;
+    this.strokeWidth = strokeWidth;
+    this.closed = closed;
   }
+}
+
+const PaintType = {
+  Fill: 'Fill',
+  Stroke: 'Stroke',
 }
 
 class PathOperation {
@@ -48,7 +56,7 @@ class LineToOperation extends PathOperation {
     const x = this.createSizeDependentToken('width', this.x, round);
     const y = this.createSizeDependentToken('height', this.y, round);
 
-    return `path.moveTo(${x}, ${y});`;
+    return `path.lineTo(${x}, ${y});`;
   }
 }
 
@@ -93,13 +101,13 @@ class AddOvalOperation extends PathOperation {
 }
 
 class FlutterPathPrinter {
-    constructor(path) {
-      this.path = path;
-    }
+  constructor(path) {
+    this.path = path;
+  }
 
-    print() {
-      return "TEST!";
-    }
+  print() {
+    return "TEST!";
+  }
 }
 
 class FlutterCustomPaintPrinter {
@@ -126,7 +134,7 @@ class FlutterCustomPaintPrinter {
 
     paths.forEach((path, index) => {
       linesPaths.push('');
-      linesPaths.push(`\t\t// Path ${index+1}`);
+      linesPaths.push(`\t\t// Path ${index + 1} ${path.paintType}`);
 
       if (index > 0) {
         linesPaths.push('\t\tpath = Path();');
@@ -136,7 +144,7 @@ class FlutterCustomPaintPrinter {
       let color = path.color;
 
       if (color == null) {
-          color = '000000';
+        color = '000000';
       }
 
       const opacityString = path.opacity ? `.withOpacity(${path.opacity})` : '';
@@ -144,9 +152,18 @@ class FlutterCustomPaintPrinter {
       const colorCommandString = `\t\t${colorCommand}`;
 
       linesPaths.push(colorCommandString);
+      if (path.paintType == PaintType.Stroke) {
+        linesPaths.push('\t\tpaint.style = PaintingStyle.stroke;');
+        linesPaths.push('\t\tpaint.strokeWidth = ' + (path.strokeWidth ? path.strokeWidth : '1') + ';');
+      }
+
       path.operations.forEach((operation) => {
         linesPaths.push(`\t\t${operation.toFlutterCommand()}`);
       });
+
+      if (path.paintType == PaintType.Stroke && path.closed) {
+        linesPaths.push('\t\tpath.close();');
+      }
 
       linesPaths.push('\t\tcanvas.drawPath(path, paint);');
     });
@@ -158,18 +175,18 @@ class FlutterCustomPaintPrinter {
 }
 
 let helpers = {
-    roundNumber: function (num, scale) {
-        if (!("" + num).includes("e")) {
-            return +(Math.round(num + "e+" + scale) + "e-" + scale);
-        } else {
-            let arr = ("" + num).split("e");
-            let sig = ""
-            if (+arr[1] + scale > 0) {
-                sig = "+";
-            }
-            return +(Math.round(+arr[0] + "e" + sig + (+arr[1] + scale)) + "e-" + scale);
-        }
+  roundNumber: function (num, scale) {
+    if (!("" + num).includes("e")) {
+      return +(Math.round(num + "e+" + scale) + "e-" + scale);
+    } else {
+      let arr = ("" + num).split("e");
+      let sig = ""
+      if (+arr[1] + scale > 0) {
+        sig = "+";
+      }
+      return +(Math.round(+arr[0] + "e" + sig + (+arr[1] + scale)) + "e-" + scale);
     }
+  }
 }
 
 module.exports = {
@@ -178,5 +195,6 @@ module.exports = {
   MoveToOperation,
   LineToOperation,
   CubicToOperation,
-  AddOvalOperation
+  AddOvalOperation,
+  PaintType,
 };
