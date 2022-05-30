@@ -16,15 +16,15 @@ class SvgNode {
 class SvgToFlutterPathConverter {
   static supportedShapeDefinitions = ['path', 'circle', 'rect'];
 
-  convertFromFilePath(filePath) {
+  convertFromFilePath(filePath, pathTracing) {
     const data = fs.readFileSync(filePath, 'utf8');
     
     const optimized = optimize(data).data;
     
-    return this.convertFromString(optimized);
+    return this.convertFromString(optimized, pathTracing);
   }
 
-  convertFromString(svgString) {
+  convertFromString(svgString, pathTracing) {
     let wholeSvg = parseSync(svgString);
     
     let parsedNodes = wholeSvg.children;
@@ -42,7 +42,7 @@ class SvgToFlutterPathConverter {
       })
       .map((element) => new SvgNode(element.name, element.type, element.attributes));
 
-    return shapesToFlutterCodeConverter(filteredNodes, width, height);
+    return shapesToFlutterCodeConverter(filteredNodes, width, height, pathTracing);
   }
 
   filterSupportedNodes(nodes, groups) {
@@ -221,7 +221,7 @@ function normalizeNumber(number) {
   return number.replace(/[^0-9]/g, '');
 }
 
-function shapesToFlutterCodeConverter(shapes, width, height) {
+function shapesToFlutterCodeConverter(shapes, width, height, pathTracing) {
   let printer = new flutterPath.FlutterCustomPaintPrinter();
   let flutterPaths = [];
 
@@ -312,7 +312,7 @@ function shapesToFlutterCodeConverter(shapes, width, height) {
     }
   });
 
-  return printer.print(flutterPaths);
+  return printer.print(flutterPaths, pathTracing);
 }
 
 module.exports = SvgToFlutterPathConverter

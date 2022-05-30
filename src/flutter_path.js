@@ -111,9 +111,19 @@ class FlutterPathPrinter {
 }
 
 class FlutterCustomPaintPrinter {
-  print(paths, name = 'MyPainter') {
+  print(paths, pathTracing, name = 'MyPainter') {
+    let definition = [`class ${name} extends CustomPainter {`];
+
+    if (pathTracing) {
+      definition = definition.concat([
+        '',
+        '\tfinal double progress;',
+        '',
+        '\tMyPainter({this.progress = 1.0});'
+      ]);
+    }
+
     const linesBefore = [
-      `class ${name} extends CustomPainter {`,
       '\t@override',
       '\tvoid paint(Canvas canvas, Size size) {',
       '\t\tPath path = Path();',
@@ -165,10 +175,28 @@ class FlutterCustomPaintPrinter {
         linesPaths.push('\t\tpath.close();');
       }
 
-      linesPaths.push('\t\tcanvas.drawPath(path, paint);');
+      if (path.paintType == PaintType.Stroke && pathTracing) {
+        linesPaths.push('\t\tPathMetrics pathMetrics = path.computeMetrics();');
+        linesPaths.push('\t\tfor (PathMetric pathMetric in pathMetrics) {')
+        linesPaths.push('\t\t\tPath extractPath = pathMetric.extractPath(')
+        linesPaths.push('\t\t\t\t0.0,')
+        linesPaths.push('\t\t\t\tpathMetric.length * progress,')
+        linesPaths.push('\t\t\t);')
+        if (path.closed) {
+          linesPaths.push('\t\t\tif (progress == 1.0) {');
+          linesPaths.push('\t\t\t\textractPath.close()');
+          linesPaths.push('\t\t\t}');
+        }
+
+        linesPaths.push('\t\t\tcanvas.drawPath(extractPath, paint);')
+        linesPaths.push('\t\t}')
+      } else {
+        linesPaths.push('\t\tcanvas.drawPath(path, paint);');
+      }
     });
 
-    return linesBefore
+    return definition
+      .concat(linesBefore)
       .concat(linesPaths)
       .concat(linesAfter).join('\n');
   }

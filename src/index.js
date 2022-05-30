@@ -9,9 +9,12 @@ program
   .description('Convert svg file to Flutter path')
   .argument('<svgFilePath>')
   .option('-o --output <outputPath>', 'Where to store the output file')
+  .option('--path-tracing', 'Calculate path metrics and expose progress property. Default to false')
   .action(function(filePath, options) {
     converter = new SvgToFlutterPathConverter();
-    flutterPathString = converter.convertFromFilePath(filePath);
+    let tracing = options.pathTracing;
+
+    flutterPathString = converter.convertFromFilePath(filePath, tracing);
     let outputPath = options.output;
 
     if (!outputPath) {
