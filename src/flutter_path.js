@@ -111,10 +111,10 @@ class FlutterPathPrinter {
 }
 
 class FlutterCustomPaintPrinter {
-  print(paths, pathTracing, name = 'MyPainter') {
-    let definition = [`class ${name} extends CustomPainter {`];
+  print(paths, config) {
+    let definition = [`class ${config?.name ?? 'MyPainter'} extends CustomPainter {`];
 
-    if (pathTracing) {
+    if (config?.pathTracing) {
       definition = definition.concat([
         '',
         '\tfinal double progress;',
@@ -175,21 +175,53 @@ class FlutterCustomPaintPrinter {
         linesPaths.push('\t\tpath.close();');
       }
 
-      if (path.paintType == PaintType.Stroke && pathTracing) {
+      console.log("Config : " + JSON.stringify(config));
+      if (config?.pathTracingAll) {
         linesPaths.push('\t\tPathMetrics pathMetrics = path.computeMetrics();');
-        linesPaths.push('\t\tfor (PathMetric pathMetric in pathMetrics) {')
-        linesPaths.push('\t\t\tPath extractPath = pathMetric.extractPath(')
-        linesPaths.push('\t\t\t\t0.0,')
-        linesPaths.push('\t\t\t\tpathMetric.length * progress,')
-        linesPaths.push('\t\t\t);')
-        if (path.closed) {
-          linesPaths.push('\t\t\tif (progress == 1.0) {');
-          linesPaths.push('\t\t\t\textractPath.close()');
-          linesPaths.push('\t\t\t}');
-        }
+        linesPaths.push('\t\tfor (PathMetric pathMetric in pathMetrics) {');
+        linesPaths.push('\t\t\tPath extractPath = pathMetric.extractPath(');
+        linesPaths.push('\t\t\t\t0.0,');
+        linesPaths.push('\t\t\t\tpathMetric.length * progress,');
+        linesPaths.push('\t\t\t);');
 
-        linesPaths.push('\t\t\tcanvas.drawPath(extractPath, paint);')
-        linesPaths.push('\t\t}')
+        linesPaths.push('\t\t\tcanvas.drawPath(extractPath, paint);');
+        linesPaths.push('\t\t}');
+      } else if (config?.pathTracing) {
+        linesPaths.push('');
+        linesPaths.push('\t\tList<PathMetric> pathMetrics = path.computeMetrics().toList();');
+        linesPaths.push('');
+        
+        linesPaths.push('\t\tfinal numberOfOperations = pathMetrics.length;');
+        linesPaths.push('\t\tfinal singleOperationTime = 1.0 / numberOfOperations;');
+        linesPaths.push('\t\tfinal index = (progress / singleOperationTime).floor();');
+        linesPaths.push('');
+
+        linesPaths.push('\t\tif(index > 0) {');
+        linesPaths.push('\t\t\tList<PathMetric> completePaths = pathMetrics.sublist(0, index);');
+        linesPaths.push('\t\t\tfor (final path in completePaths) {');
+        linesPaths.push('\t\t\t\tPath extractPath = path.extractPath(');
+        linesPaths.push('\t\t\t\t\t0.0,');
+        linesPaths.push('\t\t\t\t\tpath.length,');
+        linesPaths.push('\t\t\t\t);');
+        linesPaths.push('\t\t\t\tcanvas.drawPath(extractPath, paint);');
+        linesPaths.push('\t\t\t}');
+        linesPaths.push('\t\t}');
+        
+        linesPaths.push('');      
+
+        linesPaths.push('\t\tif(index >= numberOfOperations) {');
+        linesPaths.push('\t\t\treturn;');
+        linesPaths.push('\t\t}');
+
+        linesPaths.push('');
+
+        linesPaths.push('\t\tfinal actualMetric = pathMetrics.elementAt(index);');
+        linesPaths.push('\t\tfinal localProgress = (progress - (singleOperationTime * index)) / singleOperationTime;');
+        linesPaths.push('\t\tPath extractPath = actualMetric.extractPath(');
+        linesPaths.push('\t\t\t0.0,');
+        linesPaths.push('\t\t\tactualMetric.length * localProgress,');
+        linesPaths.push('\t\t);');
+        linesPaths.push('\t\tcanvas.drawPath(extractPath, paint);');
       } else {
         linesPaths.push('\t\tcanvas.drawPath(path, paint);');
       }

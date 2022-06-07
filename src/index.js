@@ -10,11 +10,18 @@ program
   .argument('<svgFilePath>')
   .option('-o --output <outputPath>', 'Where to store the output file')
   .option('--path-tracing', 'Calculate path metrics and expose progress property. Default to false')
+  .option('--path-tracing-all', 'Calculate path metrics and expose progress property. Draw all path segments at once. Default to false')
   .action(function(filePath, options) {
     converter = new SvgToFlutterPathConverter();
     let tracing = options.pathTracing;
+    let tracingAll = options.pathTracingAll;
 
-    flutterPathString = converter.convertFromFilePath(filePath, tracing);
+    let config = {
+      pathTracing: tracing,
+      pathTracingAll: tracingAll
+    }
+    
+    flutterPathString = converter.convertFromFilePath(filePath, config);
     let outputPath = options.output;
 
     if (!outputPath) {
