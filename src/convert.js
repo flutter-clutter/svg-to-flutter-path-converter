@@ -30,8 +30,16 @@ class SvgToFlutterPathConverter {
     let wholeSvg = parseSync(svgString);
     
     let parsedNodes = wholeSvg.children;
-    let width = wholeSvg.attributes.width;
-    let height = wholeSvg.attributes.height;
+    
+    var width = wholeSvg.attributes.width;
+    var height = wholeSvg.attributes.height;
+
+    if(wholeSvg.attributes.viewBox) {
+      let viewBoxValues = wholeSvg.attributes.viewBox.split(" ");
+      width = parseFloat(viewBoxValues[2]) - parseFloat(viewBoxValues[0]);
+      height = parseFloat(viewBoxValues[1]) - parseFloat(viewBoxValues[3]);
+    }
+
 
     let groups = this.flattenGroupAttribute(parsedNodes);
     let filteredNodes = this.filterSupportedNodes(groups, parsedNodes);
