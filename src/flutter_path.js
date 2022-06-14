@@ -48,7 +48,7 @@ class LineToOperation extends PathOperation {
     const x = this.createSizeDependentToken('width', this.x, round);
     const y = this.createSizeDependentToken('height', this.y, round);
 
-    return `path.moveTo(${x}, ${y});`;
+    return `path.lineTo(${x}, ${y});`;
   }
 }
 
