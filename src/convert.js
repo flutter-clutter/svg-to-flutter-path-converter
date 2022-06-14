@@ -16,20 +16,29 @@ class SvgNode {
 class SvgToFlutterPathConverter {
   static supportedShapeDefinitions = ['path', 'circle', 'rect'];
 
-  convertFromFilePath(filePath) {
+  convertFromFilePath(filePath, config) {
     const data = fs.readFileSync(filePath, 'utf8');
     
-    const optimized = optimize(data).data;
+    const optimized = optimize(data, {
+      convertStyleToAttrs: true,
+    }).data;
     
-    return this.convertFromString(optimized);
+    return this.convertFromString(optimized, config);
   }
 
-  convertFromString(svgString) {
+  convertFromString(svgString, config) {
     let wholeSvg = parseSync(svgString);
     
     let parsedNodes = wholeSvg.children;
-    let width = wholeSvg.attributes.width;
-    let height = wholeSvg.attributes.height;
+    
+    var width = wholeSvg.attributes.width;
+    var height = wholeSvg.attributes.height;
+
+    if(wholeSvg.attributes.viewBox) {
+      let viewBoxValues = wholeSvg.attributes.viewBox.split(" ");
+      width = parseFloat(viewBoxValues[2]) - parseFloat(viewBoxValues[0]);
+      height = parseFloat(viewBoxValues[1]) - parseFloat(viewBoxValues[3]);
+    }
 
 
     let groups = this.flattenGroupAttribute(parsedNodes);
@@ -42,7 +51,7 @@ class SvgToFlutterPathConverter {
       })
       .map((element) => new SvgNode(element.name, element.type, element.attributes));
 
-    return shapesToFlutterCodeConverter(filteredNodes, width, height);
+    return shapesToFlutterCodeConverter(filteredNodes, width, height, config);
   }
 
   filterSupportedNodes(nodes, groups) {
@@ -326,7 +335,7 @@ function shapesToFlutterCodeConverter(shapes) {
     }
   });
 
-  return printer.print(flutterPaths);
+  return printer.print(flutterPaths, config);
 }
 
 module.exports = SvgToFlutterPathConverter
