@@ -244,7 +244,7 @@ function changeLineCubicsToLines(values) {
     });
 }
 
-function shapesToFlutterCodeConverter(shapes) {
+function shapesToFlutterCodeConverter(shapes, width, height, config) {
     let printer = new flutterPath.FlutterCustomPaintPrinter();
     let flutterPaths = [];
 
